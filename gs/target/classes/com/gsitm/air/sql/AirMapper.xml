@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gsitm.air.mapper.AirMapper">
+	<cache eviction="FIFO" flushInterval="60000" size="512" readOnly="true"/>
+
+	<resultMap id="AirDeparturesVO" type="com.gsitm.air.vo.AirDeparturesVO"/>
+	<resultMap id="AirArrivalsVO" type="com.gsitm.air.vo.AirArrivalsVO"/>
+	<resultMap id="SerchVO" type="com.gsitm.air.vo.SerchVO"/>
+	<resultMap id="TimeStatVO" type="com.gsitm.air.vo.TimeStatVO"/>
+	<resultMap id="StatsByTimelineVO" type="com.gsitm.air.vo.StatsByTimelineVO"/>
+
+	<!-- id의 경우에는 Mapper.java에 동일하게 사용해야된다. -->
+	<select id="AirDeparturesList" resultMap="AirDeparturesVO" statementType="PREPARED">
+	     SELECT AIRLINE
+				, AIRPORT
+				, AIRPORTCODE
+				, CHKINRANGE
+				, ESTIMATEDDATETIME
+				, FLIGHTID
+				, GATENUMBER
+				, REMARK
+				, SCHEDULEDATETIME
+				, TERMINALID
+		   FROM TB_AIR_DEPARTURES
+		   ORDER BY estimatedDateTime
+	</select>
+	<select id="AirDeparturesListSerch" resultMap="AirDeparturesVO" parameterType ="SerchVO" statementType="PREPARED">
+	   <![CDATA[
+		SELECT AIRLINE
+				, AIRPORT
+				, AIRPORTCODE
+				, CHKINRANGE
+				, ESTIMATEDDATETIME
+				, FLIGHTID
+				, GATENUMBER
+				, REMARK
+				, SCHEDULEDATETIME
+				, TERMINALID
+			FROM TB_AIR_DEPARTURES
+			WHERE ESTIMATEDDATETIME > LPAD(#{startTime},'2','0')||'00' AND ESTIMATEDDATETIME < LPAD(#{endTime},'2','0')||'59'
+		]]>
+			<if test="!terminal.equals('전체 터미널')">
+				AND TERMINALID LIKE #{terminal}
+			</if>
+			<if test="!airline.equals('항공사 선택')">
+				AND AIRLINE LIKE #{airline}
+			</if>
+			<if test="!airport.equals('목적지 선택')">
+				AND AIRPORT LIKE #{airport}
+			</if>
+			ORDER BY ESTIMATEDDATETIME
+	</select>
+	
+	<select id="AirArriveListSerch" resultMap="AirArrivalsVO" parameterType ="SerchVO" statementType="PREPARED">
+	   <![CDATA[
+		SELECT AIRLINE,
+			    AIRPORT,
+			    AIRPORTCODE,
+			    CAROUSEL,
+			    ESTIMATEDDATETIME,
+			    EXITNUMBER,
+			    FLIGHTID,
+			    GATENUMBER,
+			    REMARK,
+			    SCHEDULEDATETIME,
+			    TERMINALID
+			FROM TB_AIR_ARRIVALS
+			WHERE ESTIMATEDDATETIME > LPAD(#{startTime},'2','0')||'00' AND ESTIMATEDDATETIME < LPAD(#{endTime},'2','0')||'59'
+		]]>
+			<if test="!terminal.equals('전체 터미널')">
+				AND TERMINALID LIKE #{terminal}
+			</if>
+			<if test="!airline.equals('항공사 선택')">
+				AND AIRLINE LIKE #{airline}
+			</if>
+			<if test="!airport.equals('출발지 선택')">
+				AND AIRPORT LIKE #{airport}
+			</if>
+			<if test="!exitnumber.equals('입국장 출구')">
+				AND EXITNUMBER LIKE #{exitnumber}
+			</if>
+			ORDER BY ESTIMATEDDATETIME
+	</select>
+	
+	<select id="terminalList" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(TERMINALID) AS TERMINALID
+		   FROM TB_AIR_DEPARTURES
+		   ORDER BY 1
+	</select>
+	<select id="terminalListArr" resultType="HashMap" statementType="PREPARED">
+	     SELECT DISTINCT(TERMINALID) AS TERMINALID
+			FROM TB_AIR_ARRIVALS
+		   ORDER BY 1
+	</select>
+	<select id="airportList" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(AIRPORT) AS AIRPORT
+		   FROM TB_AIR_DEPARTURES
+           ORDER BY 1
+	</select>
+	<select id="airportListArr" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(TERMINALID) AS AIRPORT
+		   FROM TB_AIR_ARRIVALS
+           ORDER BY 1
+	</select>
+	<select id="airlineList" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(AIRLINE) AS AIRLINE
+		   FROM TB_AIR_DEPARTURES
+           ORDER BY 1
+	</select>
+	<select id="airlineListArr" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(AIRLINE) AS AIRLINE
+		   FROM TB_AIR_ARRIVALS
+           ORDER BY 1
+	</select>
+	<select id="exitnumberList" resultType="HashMap" statementType="PREPARED">
+	     SELECT distinct(EXITNUMBER) AS EXITNUMBER
+		   FROM TB_AIR_ARRIVALS
+           ORDER BY 1
+	</select>
+	
+	<update id="AirDeparturesAdd" parameterType="AirDeparturesVO" statementType="PREPARED">
+		<!-- INSERT INTO TB_AIR_DEPARTURES VALUES(#{airline, jdbcType=VARCHAR}, #{airport, jdbcType=VARCHAR}, #{airportCode, jdbcType=VARCHAR}, 
+		#{chkinrange, jdbcType=VARCHAR}, #{estimatedDateTime, jdbcType=VARCHAR}, #{flightId, jdbcType=VARCHAR}, #{gatenumber, jdbcType=VARCHAR}, 
+		#{remark, jdbcType=VARCHAR}, #{scheduleDateTime, jdbcType=VARCHAR}, #{terminalId, jdbcType=VARCHAR}) -->
+		<![CDATA[
+        MERGE INTO TB_AIR_DEPARTURES TAD
+            USING dual
+               ON (TAD.AIRLINE=#{airline, jdbcType=VARCHAR} AND TAD.AIRPORT=#{airport, jdbcType=VARCHAR} 
+               		   AND TAD.AIRPORTCODE=#{airportCode, jdbcType=VARCHAR}
+                       AND TAD.FLIGHTID=#{flightId, jdbcType=VARCHAR}
+                       AND TAD.SCHEDULEDATETIME=#{scheduleDateTime, jdbcType=VARCHAR}
+                       ) 
+             WHEN MATCHED THEN
+             UPDATE SET TAD.CHKINRANGE=#{chkinrange, jdbcType=VARCHAR} , TAD.ESTIMATEDDATETIME=#{estimatedDateTime, jdbcType=VARCHAR}
+                       , TAD.GATENUMBER=#{gatenumber, jdbcType=VARCHAR}
+                       , TAD.REMARK=#{remark, jdbcType=VARCHAR}
+                       , TAD.TERMINALID=#{terminalId, jdbcType=VARCHAR}
+              WHEN NOT MATCHED THEN
+                INSERT (      
+                        TAD.AIRLINE
+						, TAD.AIRPORT
+						, TAD.AIRPORTCODE
+						, TAD.CHKINRANGE
+						, TAD.ESTIMATEDDATETIME
+						, TAD.FLIGHTID
+						, TAD.GATENUMBER
+						, TAD.REMARK
+						, TAD.SCHEDULEDATETIME
+						, TAD.TERMINALID
+                        ) 
+                values (
+                        #{airline, jdbcType=VARCHAR}
+                        , #{airport, jdbcType=VARCHAR}
+                        , #{airportCode, jdbcType=VARCHAR}
+                        , #{chkinrange, jdbcType=VARCHAR}
+                        , #{estimatedDateTime, jdbcType=VARCHAR}
+                        , #{flightId, jdbcType=VARCHAR}
+                        , #{gatenumber, jdbcType=VARCHAR}
+                        , #{remark, jdbcType=VARCHAR}
+                        , #{scheduleDateTime, jdbcType=VARCHAR}
+                        , #{terminalId, jdbcType=VARCHAR}
+                        )
+
+          ]]>
+	</update>
+	<insert id="StatsByTimelineAdd" parameterType="StatsByTimelineVO" statementType="PREPARED">
+		INSERT INTO TB_AIR_STATSBYTIME ( ARRPASSENGER, DEPPASSENGER, PASSENGER, TIME ) VALUES ( #{arrPassenger, jdbcType=VARCHAR},
+										    #{depPassenger, jdbcType=VARCHAR},
+										    #{passenger, jdbcType=VARCHAR},
+										    #{time, jdbcType=VARCHAR} )
+	</insert>
+	<update id="AirArrivalsAdd" parameterType="AirArrivalsVO" statementType="PREPARED">
+		<![CDATA[
+        MERGE INTO TB_AIR_ARRIVALS TAA
+            USING dual
+               ON (TAA.AIRLINE=#{airline, jdbcType=VARCHAR} AND TAA.AIRPORT=#{airport, jdbcType=VARCHAR} 
+               		   AND TAA.AIRPORTCODE=#{airportcode, jdbcType=VARCHAR}
+                       AND TAA.FLIGHTID=#{flightid, jdbcType=VARCHAR}
+                       AND TAA.SCHEDULEDATETIME=#{scheduledatetime, jdbcType=VARCHAR}
+                       ) 
+             WHEN MATCHED THEN
+             UPDATE SET TAA.CAROUSEL=#{carousel, jdbcType=VARCHAR} , TAA.ESTIMATEDDATETIME=#{estimateddatetime, jdbcType=VARCHAR}
+                       , TAA.GATENUMBER=#{gatenumber, jdbcType=VARCHAR}
+                       , TAA.REMARK=#{remark, jdbcType=VARCHAR}
+                       , TAA.TERMINALID=#{terminalid, jdbcType=VARCHAR}
+                       , TAA.EXITNUMBER=#{exitnumber, jdbcType=VARCHAR}
+              WHEN NOT MATCHED THEN
+                INSERT (      
+                        TAA.AIRLINE,
+					    TAA.AIRPORT,
+					    TAA.AIRPORTCODE,
+					    TAA.CAROUSEL,
+					    TAA.ESTIMATEDDATETIME,
+					    TAA.EXITNUMBER,
+					    TAA.FLIGHTID,
+					    TAA.GATENUMBER,
+					    TAA.REMARK,
+					    TAA.SCHEDULEDATETIME,
+					    TAA.TERMINALID
+                        ) 
+                values (
+                        #{airline, jdbcType=VARCHAR}
+                        , #{airport, jdbcType=VARCHAR}
+                        , #{airportcode, jdbcType=VARCHAR}
+                        , #{carousel, jdbcType=VARCHAR}
+                        , #{estimateddatetime, jdbcType=VARCHAR}
+                        , #{exitnumber, jdbcType=VARCHAR}
+                        , #{flightid, jdbcType=VARCHAR}
+                        , #{gatenumber, jdbcType=VARCHAR}
+                        , #{remark, jdbcType=VARCHAR}
+                        , #{scheduledatetime, jdbcType=VARCHAR}
+                        , #{terminalid, jdbcType=VARCHAR}
+                        )
+          ]]>
+	</update>
+	<!-- stat -->
+	<select id="timeStat" resultType="TimeStatVO" statementType="PREPARED">
+	    <![CDATA[
+	     SELECT (SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0000' AND ESTIMATEDDATETIME < '0059') AS c_00
+		       ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0100' AND ESTIMATEDDATETIME < '0159') AS c_01
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0200' AND ESTIMATEDDATETIME < '0259') AS c_02
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0300' AND ESTIMATEDDATETIME < '0359') AS c_03
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0400' AND ESTIMATEDDATETIME < '0459') AS c_04
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0500' AND ESTIMATEDDATETIME < '0559') AS c_05
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0600' AND ESTIMATEDDATETIME < '0659') AS c_06
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0700' AND ESTIMATEDDATETIME < '0759') AS c_07
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0800' AND ESTIMATEDDATETIME < '0859') AS c_08
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '0900' AND ESTIMATEDDATETIME < '0959') AS c_09
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1000' AND ESTIMATEDDATETIME < '1059') AS c_10
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1100' AND ESTIMATEDDATETIME < '1159') AS c_11
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1200' AND ESTIMATEDDATETIME < '1259') AS c_12
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1300' AND ESTIMATEDDATETIME < '1359') AS c_13
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1400' AND ESTIMATEDDATETIME < '1459') AS c_14
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1500' AND ESTIMATEDDATETIME < '1559') AS c_15
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1600' AND ESTIMATEDDATETIME < '1659') AS c_16
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1700' AND ESTIMATEDDATETIME < '1759') AS c_17
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1800' AND ESTIMATEDDATETIME < '1859') AS c_18
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '1900' AND ESTIMATEDDATETIME < '1959') AS c_19
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '2000' AND ESTIMATEDDATETIME < '2059') AS c_20
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '2100' AND ESTIMATEDDATETIME < '2159') AS c_21
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '2200' AND ESTIMATEDDATETIME < '2259') AS c_22
+		         ,(SELECT count(*)
+		          FROM tb_air_departures
+		         WHERE ESTIMATEDDATETIME > '2300' AND ESTIMATEDDATETIME < '2359') AS c_23
+		FROM DUAL
+		]]>
+	</select>
+	
+	<select id="loadUserByUsername" resultType="UserVO" parameterType="String" statementType="PREPARED">
+	     SELECT USERNAME, PASSWORD, ROLES
+		   FROM TB_MEMBER
+		  WHERE USERNAME=#{username}
+	</select>
+	<select id="statsByTimeline" resultMap="StatsByTimelineVO" parameterType="String" statementType="PREPARED">
+	     SELECT arrpassenger,
+			    deppassenger,
+			    TO_NUMBER(passenger) AS passenger,
+			    time
+			FROM
+			    tb_air_statsbytime
+			    ORDER BY TO_NUMBER(passenger) desc
+	</select>
+</mapper>
